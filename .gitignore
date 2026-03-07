@@ -13,6 +13,8 @@ build/
 
 # Database
 db.sqlite3
+test.db
+*.db-journal
 
 # IDE
 .vscode/
@@ -27,3 +29,11 @@ media/
 # OS
 .DS_Store
 Thumbs.db
+
+# Logs and test results
+*.log
+test_failures*.txt
+final_tests*.txt
+
+# Dev scripts
+check_system.py
