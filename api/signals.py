@@ -1,162 +1,148 @@
-"""
-Phase 4: Business Logic & Anti-Loophole Signals
-- Safe pledge quantity increments using DB-level F() expressions + atomic transactions
-  to prevent race conditions when multiple donors pledge at the same time.
-- GiveCoin Gamification Rules Engine: awards coins on donation confirmation/receipt.
-- WebSocket broadcast trigger on successful qty_pledged changes.
-"""
+from django.db.models.signals import post_save, pre_save, post_delete
+from django.dispatch import receiver
 from django.db import transaction
 from django.db.models import F
-from django.db.models.signals import post_save, pre_save
-from django.dispatch import receiver
-from django.contrib.auth import get_user_model
 from django.utils import timezone
+from django.contrib.auth import get_user_model
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from rest_framework.serializers import ValidationError
 
-from .models import Donation, NeedRequest, UserBadge, Badge
+from .models import Donation, NeedRequest, Badge, UserBadge
 
+User = get_user_model()
 
-# ---------------------------------------------------------------------------
-# 4.1 Safe Donation Pledging (Race-Condition-Safe)
-# ---------------------------------------------------------------------------
 @receiver(post_save, sender=Donation)
 def handle_donation_save(sender, instance, created, **kwargs):
-    """
-    When a new Donation is CREATED (status='pledged'):
-      - Atomically increment NeedRequest.qty_pledged using F() expression so
-        concurrent requests never double-count.
-      - Auto-mark NeedRequest as 'fulfilled' when fully pledged.
-
-    When a Donation status transitions to 'confirmed' or 'received':
-      - Award GiveCoins to the donor (gamification engine).
-      - Check & unlock badges.
-      - Broadcast WebSocket update for real-time progress.
-    """
+    """Increment qty_pledged atomically on new donation."""
     if created:
-        # Atomically increment qty_pledged — safe under concurrent requests
         with transaction.atomic():
-            NeedRequest.objects.filter(pk=instance.need_request_id).update(
+            # Lock the NeedRequest to prevent over-pledging
+            need_request = NeedRequest.objects.select_for_update().get(pk=instance.need_request_id)
+            
+            if need_request.qty_pledged + instance.qty > need_request.qty_needed:
+                # Critical safety net
+                raise ValidationError("This donation would exceed the required quantity.")
+
+            # Atomically increment
+            NeedRequest.objects.filter(pk=need_request.pk).update(
                 qty_pledged=F('qty_pledged') + instance.qty
             )
-            # Refresh to get the new value and check fulfilment
-            need_request = NeedRequest.objects.select_for_update().get(pk=instance.need_request_id)
-            if need_request.qty_pledged >= need_request.qty_needed:
+            
+            # Re-fetch for status and broadcast
+            need_request.refresh_from_db()
+            if need_request.qty_pledged >= need_request.qty_needed and need_request.status == 'open':
                 need_request.status = 'fulfilled'
                 need_request.save(update_fields=['status'])
-
-        # Broadcast real-time WebSocket update to Flutter clients
+        
         _broadcast_progress(need_request)
 
+@receiver(post_delete, sender=Donation)
+def handle_donation_delete(sender, instance, **kwargs):
+    """Restore qty_pledged when a donation is deleted."""
+    with transaction.atomic():
+        NeedRequest.objects.filter(pk=instance.need_request_id).update(
+            qty_pledged=F('qty_pledged') - instance.qty
+        )
+        need_request = NeedRequest.objects.get(pk=instance.need_request_id)
+        if need_request.qty_pledged < need_request.qty_needed and need_request.status == 'fulfilled':
+             need_request.status = 'open'
+             need_request.save(update_fields=['status'])
+             
+    _broadcast_progress(need_request)
 
-# ---------------------------------------------------------------------------
-# 4.2 Gamification Rules Engine (GiveCoins Engine)
-# ---------------------------------------------------------------------------
-_PREVIOUS_STATUSES = {}  # lightweight in-process tracker for status transitions
+_STATUS_CACHE = {}
 
 @receiver(pre_save, sender=Donation)
-def track_previous_donation_status(sender, instance, **kwargs):
-    """Cache the prior status so post_save can detect transitions."""
+def track_donation_status_change(sender, instance, **kwargs):
     if instance.pk:
         try:
-            _PREVIOUS_STATUSES[instance.pk] = Donation.objects.get(pk=instance.pk).status
+            _STATUS_CACHE[instance.pk] = Donation.objects.get(pk=instance.pk).status
         except Donation.DoesNotExist:
             pass
 
-
 @receiver(post_save, sender=Donation)
 def award_give_coins(sender, instance, created, **kwargs):
-    """
-    GiveCoin Award Logic (fires when a Donation is confirmed or received):
-      - Base coins : 10 per item donated
-      - Urgency multiplier: urgency level (1-5) applied as multiplier
-      - Fulfilment bonus: +100 bonus coins if this donation completes the NeedRequest
-    """
+    """Award coins on confirmation/receipt using direct urgency multiplier."""
     if created:
-        return  # already handled in handle_donation_save
+        return
 
-    prev_status = _PREVIOUS_STATUSES.pop(instance.pk, None)
-    if prev_status in ('pledged',) and instance.status in ('confirmed', 'received'):
+    old_status = _STATUS_CACHE.pop(instance.pk, None)
+    if old_status == 'pledged' and instance.status in ('confirmed', 'received'):
         need_request = instance.need_request
-        need_request.refresh_from_db()  # ensure we have latest qty_pledged after F() update
+        # IMPORTANT: refresh from DB to get the latest qty_pledged after F() update
+        need_request.refresh_from_db()
         donor = instance.donor
-
-        # Base coins
-        base_coins = 10 * instance.qty
-
-        # Urgency multiplier (urgency stored as 1-5 integer)
-        urgency_multiplier = need_request.urgency  # e.g. 5 for urgent
-        total_coins = base_coins * urgency_multiplier
-
-        # Fulfilment bonus — was this donation the one that topped it off?
+        
+        # Base: 10 per qty * urgency level (1-5 simple multiplier)
+        base = 10 * instance.qty
+        total = base * need_request.urgency
+        
+        # Bonus if the donation fulfills the need request
         if need_request.qty_pledged >= need_request.qty_needed:
-            total_coins += 100
-
-        # Atomically add coins and update streak — prevents concurrent balance corruption
-        today = timezone.now().date()
-        User = get_user_model()
-        donor.refresh_from_db()
-        last_date = donor.last_donation_date
-        if last_date is None or (today - last_date).days > 1:
-            new_streak = 1  # first donation or streak broken
-        elif (today - last_date).days == 1:
-            new_streak = donor.streak_days + 1  # consecutive day
-        else:
-            new_streak = donor.streak_days  # same day — preserve streak
-
+            total += 100
+            
         with transaction.atomic():
-            User.objects.filter(pk=donor.pk).update(
-                give_coins=F('give_coins') + total_coins,
-                streak_days=new_streak,
-                last_donation_date=today,
-            )
-
-        # Check badge unlocks after coin update
-        _check_and_award_badges(donor)
-
-        # Broadcast updated progress (status change)
+            # Update user atomically
+            u = User.objects.select_for_update().get(pk=donor.pk)
+            
+            # Simple streak logic: if yesterday was the last donation date, increment
+            today = timezone.now().date()
+            if u.last_donation_date == today:
+                # Already donated today, don't increment streak but award coins
+                pass
+            elif u.last_donation_date == today - timezone.timedelta(days=1):
+                u.streak_days = F('streak_days') + 1
+            else:
+                u.streak_days = 1
+            
+            u.give_coins = F('give_coins') + total
+            u.last_donation_date = today
+            u.save()
+            
+            # Evaluate badges
+            _check_and_award_badges(u)
+            
         _broadcast_progress(need_request)
 
-
-# ---------------------------------------------------------------------------
-# 4.3 Badge Unlock Logic
-# ---------------------------------------------------------------------------
-BADGE_CRITERIA_DISPATCH = {
-    'donation_count': lambda donor: donor.donations.filter(status__in=['confirmed', 'received']).count(),
-    'coin_threshold': lambda donor: donor.give_coins,
-    'streak_days': lambda donor: donor.streak_days,
-}
-
 def _check_and_award_badges(donor):
-    """Evaluate all badges and unlock any newly earned ones for the donor."""
+    """Check and grant badges based on current stats."""
     donor.refresh_from_db()
-    already_earned = set(donor.user_badges.values_list('badge_id', flat=True))
-    all_badges = Badge.objects.exclude(pk__in=already_earned)
+    
+    # Calc stats
+    donations_confirmed = donor.donations.filter(status__in=['confirmed', 'received']).count()
+    coins = donor.give_coins
+    streak = donor.streak_days
+    
+    # Use 'earned_badges' reverse relation from models.py
+    already_earned = set(donor.earned_badges.values_list('badge_id', flat=True))
+    eligible_badges = Badge.objects.exclude(pk__in=already_earned)
+    
+    for badge in eligible_badges:
+        earned = False
+        if badge.criteria_type == 'donation_count' and donations_confirmed >= badge.criteria_value:
+            earned = True
+        elif badge.criteria_type == 'coin_threshold' and coins >= badge.criteria_value:
+            earned = True
+        elif badge.criteria_type == 'streak_days' and streak >= badge.criteria_value:
+            earned = True
+            
+        if earned:
+            UserBadge.objects.get_or_create(user=donor, badge=badge)
 
-    for badge in all_badges:
-        criteria_fn = BADGE_CRITERIA_DISPATCH.get(badge.criteria_type)
-        if criteria_fn and criteria_fn(donor) >= badge.criteria_value:
-            UserBadge.objects.create(user=donor, badge=badge)
-
-
-# ---------------------------------------------------------------------------
-# 4.3 WebSocket Broadcast Helper
-# ---------------------------------------------------------------------------
 def _broadcast_progress(need_request):
-    """
-    Emit a real-time WebSocket message to Flutter clients listening on
-    ws://...needs/<id>/progress/ so the LinearProgressIndicator updates live.
-    """
+    """WebSocket notification for real-time progress bar."""
     channel_layer = get_channel_layer()
-    if channel_layer is None:
-        return  # No channel layer configured (e.g. during tests)
-
-    group_name = f"needs_{need_request.pk}"
+    if not channel_layer:
+        return
+        
+    group_name = f"needs_{need_request.id}"
     async_to_sync(channel_layer.group_send)(
         group_name,
         {
             "type": "progress_update",
             "qty_pledged": need_request.qty_pledged,
             "qty_needed": need_request.qty_needed,
+            "status": need_request.status
         }
     )

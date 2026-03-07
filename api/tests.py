@@ -192,6 +192,7 @@ class NeedRequestTests(BaseTestCase):
             'title': 'Rice Bags',
             'qty_needed': 100,
             'urgency': 4,
+            'deadline': (timezone.now() + timedelta(days=7)).isoformat(),
         })
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
         self.assertEqual(resp.data['qty_pledged'], 0)
@@ -341,14 +342,28 @@ class TeamTests(BaseTestCase):
         self.assertIn(donor2, team.members.all())
 
     def test_leave_team(self):
+        # Create team with self.donor as creator (auto-added as member)
         team = Team.objects.create(
             name='Leavable Team', creator=self.donor, challenge_goal=50
         )
         team.members.add(self.donor)
-        self.client.force_authenticate(user=self.donor)
+        
+        # Add another donor who will leave
+        donor2 = User.objects.create_user(username='donor2_leave', password='pass', role='donor')
+        team.members.add(donor2)
+        
+        self.client.force_authenticate(user=donor2)
         resp = self.client.post(f'/api/teams/{team.pk}/leave/')
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertNotIn(self.donor, team.members.all())
+        self.assertNotIn(donor2, team.members.all())
+
+    def test_creator_cannot_leave_team(self):
+        team = Team.objects.create(name='Creator Team', creator=self.donor)
+        team.members.add(self.donor)
+        self.client.force_authenticate(user=self.donor)
+        resp = self.client.post(f'/api/teams/{team.pk}/leave/')
+        # Creators are blocked from leaving (they should delete instead)
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
 
 class ImpactUpdateTests(BaseTestCase):

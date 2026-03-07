@@ -12,7 +12,8 @@ from .serializers import (
     TeamSerializer, BadgeSerializer, UserBadgeSerializer,
     DonationStatusSerializer,
 )
-from .permissions import IsCharityAdmin, IsDonor, IsCharityOwner
+from rest_framework.exceptions import PermissionDenied
+from .permissions import IsCharityAdmin, IsDonor, IsObjectOwner
 
 User = get_user_model()
 
@@ -87,7 +88,7 @@ class CharityViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ('create', 'update', 'partial_update', 'destroy'):
-            return [IsAuthenticated(), IsCharityAdmin()]
+            return [IsAuthenticated(), IsCharityAdmin(), IsObjectOwner()]
         return [AllowAny()]
 
     def perform_create(self, serializer):
@@ -102,25 +103,31 @@ class NeedRequestViewSet(viewsets.ModelViewSet):
     filterset_fields = ['category', 'status', 'urgency', 'charity__location']
 
     def get_queryset(self):
+        queryset = NeedRequest.objects.all()
+        # Filter by charity if nested
         charity_id = self.kwargs.get('charity_pk')
         if charity_id:
-            return NeedRequest.objects.filter(charity_id=charity_id).order_by('-urgency', 'deadline')
-        return NeedRequest.objects.all().order_by('-urgency', 'deadline')
+            queryset = queryset.filter(charity_id=charity_id)
+        
+        # Filter by charity location if provided in query param
+        location = self.request.query_params.get('location')
+        if location:
+            queryset = queryset.filter(charity__location__icontains=location)
+            
+        return queryset.order_by('-urgency', 'deadline')
 
     def get_permissions(self):
         if self.action in ('create', 'update', 'partial_update', 'destroy'):
-            return [IsAuthenticated(), IsCharityAdmin()]
+            return [IsAuthenticated(), IsCharityAdmin(), IsObjectOwner()]
         return [AllowAny()]
 
     def perform_create(self, serializer):
         charity_id = self.kwargs.get('charity_pk')
         try:
             charity = Charity.objects.get(pk=charity_id, admin=self.request.user)
+            serializer.save(charity=charity)
         except Charity.DoesNotExist:
-            raise drf_serializers.ValidationError(
-                {'detail': 'Charity not found or you are not the admin of this charity.'}
-            )
-        serializer.save(charity=charity)
+            raise PermissionDenied("You can only create needs for your own charity.")
 
 
 # ---------------------------------------------------------------------------
@@ -201,8 +208,15 @@ class ImpactUpdateViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ('create', 'update', 'partial_update', 'destroy'):
-            return [IsAuthenticated(), IsCharityAdmin()]
+            return [IsAuthenticated(), IsCharityAdmin(), IsObjectOwner()]
         return [AllowAny()]
+
+    def perform_create(self, serializer):
+        donation = serializer.validated_data['donation']
+        # Double check that the donation belongs to the admin's charity
+        if donation.need_request.charity.admin != self.request.user:
+            raise PermissionDenied("You can only provide updates for donations to your charity.")
+        serializer.save(charity=donation.need_request.charity)
 
 
 # ---------------------------------------------------------------------------
@@ -211,25 +225,31 @@ class ImpactUpdateViewSet(viewsets.ModelViewSet):
 class TeamViewSet(viewsets.ModelViewSet):
     queryset = Team.objects.all().order_by('id')
     serializer_class = TeamSerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ('create', 'update', 'partial_update', 'destroy'):
+            return [IsAuthenticated(), IsObjectOwner()]
+        return [AllowAny()]
 
     def perform_create(self, serializer):
         team = serializer.save(creator=self.request.user)
         team.members.add(self.request.user)
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def join(self, request, pk=None):
         """POST /api/teams/<id>/join/ — Join an existing team."""
         team = self.get_object()
         team.members.add(request.user)
-        return Response({'status': 'joined'})
+        return Response({'status': f'Joined team {team.name}'})
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def leave(self, request, pk=None):
         """POST /api/teams/<id>/leave/ — Leave a team."""
         team = self.get_object()
+        if team.creator == request.user:
+            return Response({'error': 'Creators cannot leave their own team. Delete it instead.'}, status=status.HTTP_400_BAD_REQUEST)
         team.members.remove(request.user)
-        return Response({'status': 'left'})
+        return Response({'status': f'Left team {team.name}'})
 
     @action(detail=True, methods=['get'], permission_classes=[AllowAny])
     def leaderboard(self, request, pk=None):

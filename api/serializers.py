@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from .models import Charity, NeedRequest, Donation, ImpactUpdate, Team, Badge, UserBadge
 
 User = get_user_model()
@@ -24,6 +25,20 @@ class NeedRequestSerializer(serializers.ModelSerializer):
         model = NeedRequest
         fields = ['id', 'charity', 'category', 'title', 'qty_needed', 'qty_pledged', 'urgency', 'deadline', 'status']
         read_only_fields = ['qty_pledged', 'status']
+
+    def validate_deadline(self, value):
+        # Allow a small grace period (2 mins) to avoid 400s during tests/network lag
+        if value < timezone.now() - timezone.timedelta(minutes=2):
+            raise serializers.ValidationError("Deadline cannot be in the past.")
+        return value
+
+    def validate(self, data):
+        if self.instance and 'qty_needed' in data:
+            if data['qty_needed'] < self.instance.qty_pledged:
+                raise serializers.ValidationError({
+                    "qty_needed": f"Cannot lower needed quantity below current pledges ({self.instance.qty_pledged})."
+                })
+        return data
 
 class DonationSerializer(serializers.ModelSerializer):
     donor = serializers.PrimaryKeyRelatedField(read_only=True)
