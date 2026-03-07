@@ -10,6 +10,7 @@ class User(AbstractUser):
     give_coins = models.IntegerField(default=0)
     streak_days = models.IntegerField(default=0)
     location = models.CharField(max_length=255, blank=True, null=True)
+    last_donation_date = models.DateField(blank=True, null=True)
 
 class Charity(models.Model):
     admin = models.OneToOneField(User, on_delete=models.CASCADE, related_name='charity_profile')

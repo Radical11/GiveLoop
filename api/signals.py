@@ -10,6 +10,7 @@ from django.db.models import F
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
@@ -77,6 +78,7 @@ def award_give_coins(sender, instance, created, **kwargs):
     prev_status = _PREVIOUS_STATUSES.pop(instance.pk, None)
     if prev_status in ('pledged',) and instance.status in ('confirmed', 'received'):
         need_request = instance.need_request
+        need_request.refresh_from_db()  # ensure we have latest qty_pledged after F() update
         donor = instance.donor
 
         # Base coins
@@ -90,18 +92,29 @@ def award_give_coins(sender, instance, created, **kwargs):
         if need_request.qty_pledged >= need_request.qty_needed:
             total_coins += 100
 
-        # Atomically add coins — prevents concurrent balance corruption
+        # Atomically add coins and update streak — prevents concurrent balance corruption
+        today = timezone.now().date()
         User = get_user_model()
+        donor.refresh_from_db()
+        last_date = donor.last_donation_date
+        if last_date is None or (today - last_date).days > 1:
+            new_streak = 1  # first donation or streak broken
+        elif (today - last_date).days == 1:
+            new_streak = donor.streak_days + 1  # consecutive day
+        else:
+            new_streak = donor.streak_days  # same day — preserve streak
+
         with transaction.atomic():
             User.objects.filter(pk=donor.pk).update(
-                give_coins=F('give_coins') + total_coins
+                give_coins=F('give_coins') + total_coins,
+                streak_days=new_streak,
+                last_donation_date=today,
             )
 
         # Check badge unlocks after coin update
         _check_and_award_badges(donor)
 
         # Broadcast updated progress (status change)
-        need_request.refresh_from_db()
         _broadcast_progress(need_request)
 
 

@@ -7,8 +7,8 @@ User = get_user_model()
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'role', 'give_coins', 'streak_days', 'location']
-        read_only_fields = ['give_coins', 'streak_days']
+        fields = ['id', 'username', 'email', 'role', 'give_coins', 'streak_days', 'location', 'last_donation_date']
+        read_only_fields = ['give_coins', 'streak_days', 'last_donation_date']
 
 class CharitySerializer(serializers.ModelSerializer):
     admin = UserSerializer(read_only=True)
@@ -55,7 +55,8 @@ class ImpactUpdateSerializer(serializers.ModelSerializer):
 
 class TeamSerializer(serializers.ModelSerializer):
     creator = serializers.PrimaryKeyRelatedField(read_only=True)
-    
+    members = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
+
     class Meta:
         model = Team
         fields = ['id', 'name', 'creator', 'members', 'challenge_goal', 'challenge_deadline']
@@ -70,3 +71,9 @@ class UserBadgeSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserBadge
         fields = ['id', 'user', 'badge', 'earned_at']
+
+
+class DonationStatusSerializer(serializers.Serializer):
+    """Used for PATCH /api/donations/<id>/status/ — charity admin updates donation status."""
+    STATUS_CHOICES = ['confirmed', 'received']
+    status = serializers.ChoiceField(choices=STATUS_CHOICES)
