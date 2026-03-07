@@ -31,7 +31,6 @@ class LoginScreen extends StatelessWidget {
                       fit: BoxFit.cover,
                     ),
                   ),
-
                   Align(
                     alignment: const Alignment(0, -0.05),
                     child: Container(
@@ -50,14 +49,12 @@ class LoginScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-
                   SingleChildScrollView(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.end,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const SizedBox(height: 330),
-
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 28),
                           child: Column(
@@ -89,9 +86,7 @@ class LoginScreen extends StatelessWidget {
                             ],
                           ),
                         ),
-
                         const SizedBox(height: 40),
-
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 40),
                           child: SizedBox(
@@ -120,17 +115,15 @@ class LoginScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 18),
-
                         GestureDetector(
                           onTap: () {
                             Navigator.pushNamed(context, '/signup');
                           },
                           child: Padding(
-                            padding: const EdgeInsets.only(bottom: 32),
+                            padding: EdgeInsets.only(bottom: 32),
                             child: RichText(
-                              text: const TextSpan(
+                              text: TextSpan(
                                 style: TextStyle(
                                   fontSize: 15,
                                   color: Color(0xFFE7DBFF),

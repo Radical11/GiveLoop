@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'details_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -8,15 +9,22 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // 0 = Toys, 1 = Financial, 2 = Clothes, 3 = Health
   int _selectedCategory = 0;
 
-  final List<Map<String, String>> _urgentNgos = [
+  final List<Map<String, String>> _ngos = [
     {
       'title': 'Mother Mary NGO',
       'subtitle': 'Funds for helping medical support of old age people',
       'distance': '1.3 km away',
       'tag': 'Medical',
       'image': 'assets/images/ngo1.png',
+      'location': 'Raipur',
+      'about':
+          'Mother Mary NGO supports elderly people with medical care and daily essentials across Raipur.',
+      'urgent':
+          'Urgent need of funds for medicines and routine checkups for senior citizens.',
+      'category': 'Health',
     },
     {
       'title': 'Sahayata NGO',
@@ -25,11 +33,38 @@ class _HomeScreenState extends State<HomeScreen> {
       'distance': '3.5 km away',
       'tag': 'Health',
       'image': 'assets/images/ngo2.png',
+      'location': 'Raipur',
+      'about':
+          'Sahayata NGO supports underprivileged families with healthcare, clothing, and food donations.',
+      'urgent':
+          'Urgent need of healthcare supplies and warm clothes for families affected by viral flu.',
+      'category': 'Clothes',
+    },
+    {
+      'title': 'Mother Teressa NGO',
+      'subtitle': 'Needs other supplies through Cancer Charity women.',
+      'distance': '1.3 km away',
+      'tag': 'Toys',
+      'image': 'assets/images/ngo3.png',
+      'location': 'Raipur',
+      'about':
+          'Mother Teressa NGO provides educational help and supplies for children in need.',
+      'urgent':
+          'Urgent need of toys and learning materials for kids in the local community.',
+      'category': 'Toys',
     },
   ];
 
+  List<Map<String, String>> get _filteredNgos {
+    const categories = ['Toys', 'Financial', 'Clothes', 'Health'];
+    final selectedLabel = categories[_selectedCategory];
+    return _ngos.where((ngo) => ngo['category'] == selectedLabel).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final filtered = _filteredNgos;
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
@@ -80,25 +115,56 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          SizedBox(
-                            height: 260,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: _urgentNgos.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(width: 16),
-                              itemBuilder: (context, index) {
-                                final ngo = _urgentNgos[index];
-                                return _NgoCard(
-                                  title: ngo['title']!,
-                                  subtitle: ngo['subtitle']!,
-                                  distance: ngo['distance']!,
-                                  tag: ngo['tag']!,
-                                  imageAsset: ngo['image']!,
-                                );
-                              },
+                          if (filtered.isEmpty)
+                            Container(
+                              height: 120,
+                              alignment: Alignment.center,
+                              child: const Text(
+                                'No NGOs found for this category yet.',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF1F1234),
+                                ),
+                              ),
+                            )
+                          else
+                            SizedBox(
+                              height: 260,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: filtered.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 16),
+                                itemBuilder: (context, index) {
+                                  final ngo = filtered[index];
+                                  return GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => DetailsScreen(
+                                            title: ngo['title']!,
+                                            location: ngo['location']!,
+                                            distance: ngo['distance']!,
+                                            tag: ngo['tag']!,
+                                            imageAsset: ngo['image']!,
+                                            about: ngo['about']!,
+                                            urgentText: ngo['urgent']!,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: _NgoCard(
+                                      title: ngo['title']!,
+                                      subtitle: ngo['subtitle']!,
+                                      distance: ngo['distance']!,
+                                      tag: ngo['category']!,
+                                      imageAsset: ngo['image']!,
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
-                          ),
                           const SizedBox(height: 24),
                           const Text(
                             'NGOs Near You',
@@ -110,15 +176,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(height: 12),
                           _buildCategoriesRow(),
-                          const SizedBox(height: 16),
-                          _NgoCard(
-                            title: 'Mother Teressa NGO',
-                            subtitle:
-                                'Needs other supplies through Cancer Charity women.',
-                            distance: '1.3 km away',
-                            tag: 'Toys',
-                            imageAsset: 'assets/images/ngo3.png',
-                          ),
                           const SizedBox(height: 24),
                         ],
                       ),
@@ -137,19 +194,12 @@ class _HomeScreenState extends State<HomeScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Row(
-        children: [
-          const Icon(Icons.menu, color: Color(0xFF1F1234)),
-          const Spacer(),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.notifications_outlined),
-            color: const Color(0xFF1F1234),
-          ),
-          const SizedBox(width: 8),
-          const CircleAvatar(
-            radius: 16,
-            backgroundImage: AssetImage('assets/images/avatar.png'),
-          ),
+        children: const [
+          Icon(Icons.menu, color: Color(0xFF1F1234)),
+          Spacer(),
+          Icon(Icons.notifications_outlined, color: Color(0xFF1F1234)),
+          SizedBox(width: 8),
+          Icon(Icons.person_outline, color: Color(0xFF1F1234)),
         ],
       ),
     );
@@ -177,7 +227,7 @@ class _HomeScreenState extends State<HomeScreen> {
       height: 44,
       child: ElevatedButton(
         onPressed: () {
-          // TODO: navigate to leaderboard screen
+          // TODO: leaderboard navigation
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF4C3C7A),
@@ -213,7 +263,6 @@ class _HomeScreenState extends State<HomeScreen> {
           return GestureDetector(
             onTap: () {
               setState(() => _selectedCategory = index);
-              // TODO: filter NGOs using backend data
             },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -256,6 +305,7 @@ class _NgoCard extends StatelessWidget {
   final String imageAsset;
 
   const _NgoCard({
+    super.key,
     required this.title,
     required this.subtitle,
     required this.distance,
@@ -334,16 +384,6 @@ class _NgoCard extends StatelessWidget {
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () {
-                      // TODO: open NGO details screen
-                    },
-                    child: const Text('View details'),
-                  ),
                 ),
               ],
             ),
