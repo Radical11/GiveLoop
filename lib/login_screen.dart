@@ -56,7 +56,7 @@ class LoginScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.end,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const SizedBox(height: 260),
+                        const SizedBox(height: 330),
 
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -92,7 +92,6 @@ class LoginScreen extends StatelessWidget {
 
                         const SizedBox(height: 40),
 
-                        // Login button
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 40),
                           child: SizedBox(
@@ -100,7 +99,7 @@ class LoginScreen extends StatelessWidget {
                             height: 64,
                             child: ElevatedButton(
                               onPressed: () {
-                                // TODO: navigate to actual login form screen
+                                Navigator.pushNamed(context, '/signin');
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF4C3C7A),
@@ -124,24 +123,29 @@ class LoginScreen extends StatelessWidget {
 
                         const SizedBox(height: 18),
 
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 32),
-                          child: RichText(
-                            text: const TextSpan(
-                              style: TextStyle(
-                                fontSize: 15,
-                                color: Color(0xFFE7DBFF),
-                              ),
-                              children: [
-                                TextSpan(text: 'Don’t have an account? '),
-                                TextSpan(
-                                  text: 'Sign up',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF3B2C74),
-                                  ),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.pushNamed(context, '/signup');
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 32),
+                            child: RichText(
+                              text: const TextSpan(
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: Color(0xFFE7DBFF),
                                 ),
-                              ],
+                                children: [
+                                  TextSpan(text: 'Don’t have an account? '),
+                                  TextSpan(
+                                    text: 'Sign up',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF3B2C74),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
