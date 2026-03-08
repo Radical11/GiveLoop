@@ -31,9 +31,11 @@ lib/
 ├── signin_screen.dart
 ├── details_screen.dart    # NGO details & pledge button
 │   └── pledge_screen.dart # Welcome flow (TODO)
+├── profile_screen,dart
 ├── api_service.dart       # HTTP client for backend API
 ├── providers/
 │   └── needs_provider.dart    # NGO needs with fetch & filtering
+│   └── donarion_streak_provider.dart
 ├── models/
 │   └── ngo_model.dart         # NGO data model
 ├── services/
