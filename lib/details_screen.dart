@@ -1,25 +1,10 @@
 import 'package:flutter/material.dart';
 import 'pledge_screen.dart';
+import 'models/ngo_model.dart';
 
 class DetailsScreen extends StatelessWidget {
-  final String title;
-  final String location;
-  final String distance;
-  final String tag;
-  final String imageAsset;
-  final String about;
-  final String urgentText;
-
-  const DetailsScreen({
-    super.key,
-    required this.title,
-    required this.location,
-    required this.distance,
-    required this.tag,
-    required this.imageAsset,
-    required this.about,
-    required this.urgentText,
-  });
+  final Ngo ngo;
+  const DetailsScreen({super.key, required this.ngo});
 
   @override
   Widget build(BuildContext context) {
@@ -63,7 +48,7 @@ class DetailsScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            about,
+                            ngo.about,
                             style: const TextStyle(
                               fontSize: 14,
                               color: Color(0xFF1F1234),
@@ -94,15 +79,15 @@ class DetailsScreen extends StatelessWidget {
                             width: double.infinity,
                             height: 52,
                             child: ElevatedButton(
-                              onPressed: () async {
-                                final result = await Navigator.push(
+                              onPressed: () {
+                                Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) =>
-                                        PledgeScreen(needId: 1, category: tag),
+                                    builder: (_) => PledgeScreen(ngo: ngo),
                                   ),
                                 );
                               },
+
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF4C3C7A),
                                 shape: RoundedRectangleBorder(
@@ -164,17 +149,15 @@ class DetailsScreen extends StatelessWidget {
             color: const Color(0xFF1F1234),
           ),
           const SizedBox(width: 4),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF1F1234),
+          Expanded(
+            child: Text(
+              ngo.title,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
             ),
           ),
-          const Spacer(),
-          const Icon(Icons.person_outline, color: Color(0xFF1F1234)),
-          const SizedBox(width: 8),
+          const Icon(Icons.person_outline, size: 40),
         ],
       ),
     );
@@ -191,20 +174,40 @@ class DetailsScreen extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            child: Image.asset(
-              imageAsset,
-              height: 170,
+            child: Container(
+              // ✅ Category placeholder like HomeScreen
+              height: 180,
               width: double.infinity,
-              fit: BoxFit.cover,
+              color: Colors.grey[200],
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    _getCategoryIcon(ngo.category),
+                    size: 48,
+                    color: Color(0xFF4C3C7A),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    ngo.category.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF4C3C7A),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
+
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  ngo.title,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -221,12 +224,12 @@ class DetailsScreen extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      distance,
+                      ngo.distance,
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '· $location',
+                      '· ${ngo.location}',
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     const SizedBox(width: 6),
@@ -257,7 +260,7 @@ class DetailsScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Text(
-                    tag,
+                    ngo.category,
                     style: const TextStyle(
                       fontSize: 12,
                       color: Color(0xFF4B3B80),
@@ -306,7 +309,7 @@ class DetailsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  urgentText,
+                  ngo.urgentText,
                   style: const TextStyle(
                     fontSize: 13,
                     color: Color(0xFF1F1234),
@@ -318,6 +321,17 @@ class DetailsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  IconData _getCategoryIcon(String category) {
+    return switch (category.toLowerCase()) {
+      'clothes' => Icons.checkroom,
+      'food' => Icons.restaurant,
+      'electronics' => Icons.devices,
+      'toys' => Icons.toys,
+      'books' => Icons.menu_book,
+      _ => Icons.category,
+    };
   }
 }
 

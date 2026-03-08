@@ -25,21 +25,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-
     final auth = Provider.of<AuthProvider>(context, listen: false);
-
-    // Use a unique username for this test!
     final success = await auth.register(
-      username: _nameCtrl.text.trim(),
-      email: _usernameCtrl.text
-          .trim(), // Explicitly sending the email controller text
-      password: _passwordCtrl.text.trim(),
+      name: _nameCtrl.text,
+      email: _usernameCtrl.text,
+      password: _passwordCtrl.text,
     );
 
     if (success) {
       if (mounted) Navigator.pushReplacementNamed(context, '/home');
     } else {
-      // If it fails, show the specific error we captured
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

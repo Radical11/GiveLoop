@@ -9,24 +9,24 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoggedIn => _token != null;
   bool get isLoading => _isLoading;
 
-  Future<bool> login(String emailOrUsername, String password) async {
+  Future<bool> login(String usernameOrEmail, String password) async {
     try {
       _isLoading = true;
       notifyListeners();
-      print('AuthProvider.login -> start');
+      print('LOGIN START');
 
-      final response = await _api.login(emailOrUsername, password);
-      print('AuthProvider.login -> response: $response');
+      final response = await _api.login(usernameOrEmail, password);
+      print('LOGIN RESPONSE: $response');
 
       await _api.saveToken(response['access'], response['refresh']);
       _token = response['access'];
 
       _isLoading = false;
       notifyListeners();
-      print('AuthProvider.login -> success, token set');
+      print('LOGIN SUCCESS');
       return true;
     } catch (e) {
-      print('AuthProvider.login -> ERROR: $e');
+      print('LOGIN ERROR: $e');
       _isLoading = false;
       notifyListeners();
       return false;
@@ -34,27 +34,31 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<bool> register({
-    required String username,
-    required String password,
+    required String name,
     required String email,
+    required String password,
   }) async {
     try {
       _isLoading = true;
       notifyListeners();
+      print('🔐 REGISTER START: $name / $email');
 
       final response = await _api.register(
-        username: username,
-        password: password,
+        name: name,
         email: email,
+        password: password,
       );
 
+      print('REGISTER RESPONSE: $response');
       await _api.saveToken(response['access'], response['refresh']);
       _token = response['access'];
 
       _isLoading = false;
       notifyListeners();
+      print('REGISTER SUCCESS');
       return true;
     } catch (e) {
+      print('REGISTER ERROR: $e');
       _isLoading = false;
       notifyListeners();
       return false;
@@ -65,5 +69,6 @@ class AuthProvider extends ChangeNotifier {
     await _api.logout();
     _token = null;
     notifyListeners();
+    print('LOGOUT');
   }
 }

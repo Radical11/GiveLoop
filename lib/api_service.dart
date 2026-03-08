@@ -9,10 +9,10 @@ class ApiService {
       return 'http://127.0.0.1:8000/api';
     }
     if (Platform.isAndroid) {
-      return 'http://192.168.0.117:8000/api';
+      return 'http://10.0.2.2:8000/api';
     }
     if (Platform.isIOS) {
-      return 'http://127.0.0.1:8000/api';
+      return 'http://10.0.2.2:8000/api';
     }
     if (Platform.isMacOS) {
       return 'http://127.0.0.1:8000/api';
@@ -26,7 +26,7 @@ class ApiService {
     _dio = Dio(
       BaseOptions(
         baseUrl: _baseUrl,
-        connectTimeout: const Duration(seconds: 5),
+        connectTimeout: const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 10),
       ),
     );
@@ -36,14 +36,18 @@ class ApiService {
         onRequest: (options, handler) async {
           final prefs = await SharedPreferences.getInstance();
           final token = prefs.getString('access_token');
-          if (token != null) {
+          if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
           }
-          print('DIO REQUEST: ${options.method} ${options.uri}');
+          print('DIO: ${options.method} ${options.uri.path}');
           handler.next(options);
         },
+        onResponse: (response, handler) {
+          print('DIO OK: ${response.statusCode}');
+          handler.next(response);
+        },
         onError: (e, handler) {
-          print('DIO ERROR: ${e.type} -> ${e.message}');
+          print('DIO ERROR [${e.response?.statusCode}]: ${e.response?.data}');
           handler.next(e);
         },
       ),
@@ -59,31 +63,26 @@ class ApiService {
         '/auth/login/',
         data: {'username': usernameOrEmail, 'password': password},
       );
-      return response.data as Map<String, dynamic>;
+      return Map<String, dynamic>.from(response.data as Map);
     } on DioException catch (e) {
-      print('Login Failed: ${e.response?.data}');
+      print('LOGIN ERROR: ${e.response?.data ?? e.message}');
       rethrow;
     }
   }
 
   Future<Map<String, dynamic>> register({
-    required String username,
+    required String name,
     required String email,
     required String password,
   }) async {
     try {
       final response = await _dio.post(
         '/auth/register/',
-        data: {
-          'username': username,
-          'email': email.trim(), // Ensure no leading/trailing spaces
-          'password': password,
-        },
+        data: {'name': name, 'email': email.trim(), 'password': password},
       );
       return Map<String, dynamic>.from(response.data as Map);
     } on DioException catch (e) {
-      // This helper will print the exact validation error in your console
-      print('DJANGO VALIDATION DETAIL: ${e.response?.data}');
+      print('REGISTER ERROR: ${e.response?.data ?? e.message}');
       rethrow;
     }
   }
@@ -92,17 +91,24 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('access_token', accessToken);
     await prefs.setString('refresh_token', refreshToken);
+    print('Tokens saved');
   }
 
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('access_token');
     await prefs.remove('refresh_token');
+    print('Logged out');
   }
 
   Future<List<dynamic>> getNeeds() async {
-    final response = await _dio.get('/needs/');
-    return List<dynamic>.from(response.data as List);
+    try {
+      final response = await _dio.get('/needs/');
+      return List<dynamic>.from(response.data['results'] ?? []);
+    } on DioException catch (e) {
+      print('GET NEEDS ERROR: ${e.response?.data ?? e.message}');
+      rethrow;
+    }
   }
 
   Future<Map<String, dynamic>> pledge({
@@ -110,15 +116,27 @@ class ApiService {
     required String category,
     required int quantity,
   }) async {
-    final response = await _dio.post(
-      '/donations/pledge/',
-      data: {'need_id': needId, 'category': category, 'quantity': quantity},
-    );
-    return Map<String, dynamic>.from(response.data as Map);
+    print('Pledging: needId=$needId, category="$category", qty=$quantity');
+    try {
+      final response = await _dio.post(
+        '/donations/pledge/',
+        data: {'need_request': needId, 'category': category, 'qty': quantity},
+      );
+      print('Pledge created: ${response.data}');
+      return Map<String, dynamic>.from(response.data as Map);
+    } on DioException catch (e) {
+      print('PLEDGE ERROR: ${e.response?.data ?? e.message}');
+      rethrow;
+    }
   }
 
   Future<List<dynamic>> getLeaderboard() async {
-    final response = await _dio.get('/users/leaderboard/');
-    return List<dynamic>.from(response.data as List);
+    try {
+      final response = await _dio.get('/users/leaderboard/');
+      return List<dynamic>.from(response.data as List);
+    } on DioException catch (e) {
+      print('LEADERBOARD ERROR: ${e.response?.data ?? e.message}');
+      rethrow;
+    }
   }
 }
