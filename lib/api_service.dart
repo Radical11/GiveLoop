@@ -71,15 +71,21 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> register({
-    required String name,
+    required String username, // ✅ ADD username param
     required String email,
     required String password,
   }) async {
     try {
+      print('API REGISTER BODY: username=$username, email=$email'); // ✅ DEBUG
       final response = await _dio.post(
         '/auth/register/',
-        data: {'name': name, 'email': email.trim(), 'password': password},
+        data: {
+          'username': username,
+          'email': email.trim(),
+          'password': password,
+        },
       );
+      print('REGISTER SUCCESS: ${response.data}');
       return Map<String, dynamic>.from(response.data as Map);
     } on DioException catch (e) {
       print('REGISTER ERROR: ${e.response?.data ?? e.message}');

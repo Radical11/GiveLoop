@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/auth_provider.dart'; // Adjust path
+import '../services/auth_provider.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -13,24 +13,33 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _usernameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController(); // ✅ NEW: Separate email
   final _passwordCtrl = TextEditingController();
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _usernameCtrl.dispose();
+    _emailCtrl.dispose(); // ✅ Dispose new
     _passwordCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    print(
+      'Submitting: name=${_nameCtrl.text}, username=${_usernameCtrl.text}, email=${_emailCtrl.text}',
+    );
+
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final success = await auth.register(
-      name: _nameCtrl.text,
-      email: _usernameCtrl.text,
+      username: _usernameCtrl.text.trim(), // ✅ Alphanumeric username
+      email: _emailCtrl.text.trim(), // ✅ Separate email field
       password: _passwordCtrl.text,
     );
+
+    print('Register result: $success');
 
     if (success) {
       if (mounted) Navigator.pushReplacementNamed(context, '/home');
@@ -38,10 +47,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Registration failed. Check if email is valid and unique.',
-            ),
-            backgroundColor: Colors.red,
+            content: Text('Registration failed. Username may exist.'),
           ),
         );
       }
@@ -118,7 +124,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                       const SizedBox(height: 16),
                       const Text(
-                        'Username',
+                        'Username', // ✅ Username (no @)
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF1F1234),
@@ -127,11 +133,30 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _usernameCtrl,
+                        decoration: _inputDecoration('johndoe'),
+                        validator: (v) {
+                          if (v == null || v.isEmpty || v.contains('@')) {
+                            return 'Username without @ symbol';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Email',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1F1234),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _emailCtrl, // ✅ NEW email field
                         keyboardType: TextInputType.emailAddress,
-                        decoration: _inputDecoration('example@gmail.com'),
-                        validator: (value) {
-                          if (value == null || !value.contains('@')) {
-                            return 'Enter a valid email';
+                        decoration: _inputDecoration('johndoe@gmail.com'),
+                        validator: (v) {
+                          if (v == null || !v.contains('@')) {
+                            return 'Enter valid email';
                           }
                           return null;
                         },
@@ -151,7 +176,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         decoration: _inputDecoration('••••••••'),
                         validator: (v) {
                           if (v == null || v.length < 6)
-                            return 'Password must be at least 6 characters';
+                            return 'Password must be 6+ chars';
                           return null;
                         },
                       ),

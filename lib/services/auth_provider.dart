@@ -34,33 +34,31 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<bool> register({
-    required String name,
+    required String username,
     required String email,
     required String password,
   }) async {
     try {
-      _isLoading = true;
-      notifyListeners();
-      print('🔐 REGISTER START: $name / $email');
-
-      final response = await _api.register(
-        name: name,
+      await _api.register(
+        username: username,
         email: email,
         password: password,
-      );
+      ); // ✅ Creates user
 
-      print('REGISTER RESPONSE: $response');
-      await _api.saveToken(response['access'], response['refresh']);
-      _token = response['access'];
+      // ✅ Auto-login after register
+      final loginData = await _api.login(username, password);
+      final accessToken = loginData['access'] as String?;
+      final refreshToken = loginData['refresh'] as String?;
 
-      _isLoading = false;
-      notifyListeners();
-      print('REGISTER SUCCESS');
-      return true;
+      if (accessToken != null && refreshToken != null) {
+        await _api.saveToken(accessToken, refreshToken);
+        return true;
+      } else {
+        print('No tokens in login response after register');
+        return false;
+      }
     } catch (e) {
-      print('REGISTER ERROR: $e');
-      _isLoading = false;
-      notifyListeners();
+      print('Register+login error: $e');
       return false;
     }
   }
