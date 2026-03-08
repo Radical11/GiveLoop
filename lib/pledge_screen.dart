@@ -101,9 +101,7 @@ class _PledgeScreenState extends State<PledgeScreen> {
   @override
   Widget build(BuildContext context) {
     final ngo = widget.ngo;
-    final isLoggedIn = context
-        .read<AuthProvider>()
-        .isLoggedIn; // requires provider setup
+    final isLoggedIn = context.read<AuthProvider>().isLoggedIn;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -317,7 +315,7 @@ class _PledgeScreenState extends State<PledgeScreen> {
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             child: Container(
-              height: 160, // Fixed height
+              height: 160,
               width: double.infinity,
               color: Colors.grey[200],
               child: Column(
@@ -409,7 +407,7 @@ class _PledgeScreenState extends State<PledgeScreen> {
       'medicine',
       'toys',
       'electronics',
-    ].toSet().toList(); // unique
+    ].toSet().toList();
 
     return Wrap(
       spacing: 8,

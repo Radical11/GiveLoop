@@ -13,14 +13,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _usernameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController(); // ✅ NEW: Separate email
+  final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _usernameCtrl.dispose();
-    _emailCtrl.dispose(); // ✅ Dispose new
+    _emailCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
   }
@@ -34,8 +34,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final success = await auth.register(
-      username: _usernameCtrl.text.trim(), // ✅ Alphanumeric username
-      email: _emailCtrl.text.trim(), // ✅ Separate email field
+      username: _usernameCtrl.text.trim(),
+      email: _emailCtrl.text.trim(),
       password: _passwordCtrl.text,
     );
 
@@ -124,7 +124,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                       const SizedBox(height: 16),
                       const Text(
-                        'Username', // ✅ Username (no @)
+                        'Username',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF1F1234),
@@ -151,7 +151,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                       const SizedBox(height: 8),
                       TextFormField(
-                        controller: _emailCtrl, // ✅ NEW email field
+                        controller: _emailCtrl,
                         keyboardType: TextInputType.emailAddress,
                         decoration: _inputDecoration('johndoe@gmail.com'),
                         validator: (v) {

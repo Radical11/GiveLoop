@@ -265,7 +265,7 @@ class ProfileScreen extends StatelessWidget {
                         style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                       ),
                       const SizedBox(height: 16),
-                      _buildHeatmap(streakProvider), // ✅ Pass provider
+                      _buildHeatmap(streakProvider),
                       const SizedBox(height: 16),
                       Row(
                         children: [
@@ -289,7 +289,6 @@ class ProfileScreen extends StatelessWidget {
 
           const SizedBox(height: 16),
 
-          // ── Recent Donations Card ──
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Container(
@@ -330,7 +329,6 @@ class ProfileScreen extends StatelessWidget {
 
           const SizedBox(height: 24),
 
-          // ── Open Community Button ──
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: SizedBox(
@@ -428,7 +426,6 @@ class ProfileScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Month labels
         Row(
           children: [
             const SizedBox(width: 24),
@@ -439,8 +436,7 @@ class ProfileScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 8,
                     fontWeight: now.month - 1 == months.indexOf(m)
-                        ? FontWeight
-                              .bold // Highlight current month
+                        ? FontWeight.bold
                         : FontWeight.normal,
                     color: now.month - 1 == months.indexOf(m)
                         ? const Color(0xFF2D1B6B)
@@ -454,7 +450,6 @@ class ProfileScreen extends StatelessWidget {
         ),
         const SizedBox(height: 6),
 
-        // W1–W5 rows × 12 months — ✅ REAL DATA from provider
         ...List.generate(5, (weekIndex) {
           return Padding(
             padding: const EdgeInsets.only(bottom: 5),
@@ -471,7 +466,6 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
                 ...List.generate(12, (monthIndex) {
-                  // ✅ Auto-calculates level from real donation timestamps
                   final level = streakProvider.getActivityLevel(
                     monthIndex,
                     weekIndex,
@@ -503,7 +497,6 @@ class ProfileScreen extends StatelessWidget {
 
         const SizedBox(height: 10),
 
-        // Legend
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [

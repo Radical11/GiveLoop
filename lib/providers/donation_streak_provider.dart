@@ -3,12 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class DonationStreakProvider extends ChangeNotifier {
-  // List of ISO8601 timestamps of each donation
   List<DateTime> _donations = [];
-
   List<DateTime> get donations => _donations;
 
-  // Call once at startup
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getStringList('donation_timestamps') ?? [];
@@ -16,7 +13,6 @@ class DonationStreakProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Called after a successful pledge
   Future<void> recordDonation() async {
     final now = DateTime.now();
     _donations.add(now);
@@ -28,11 +24,9 @@ class DonationStreakProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Returns activity level 0–4 for a given month (0–11) and week (0–4)
-  // Week index = which 7-day block of the month (day 1–7 = W1, etc.)
   int getActivityLevel(int monthIndex, int weekIndex) {
     final count = _donations.where((d) {
-      final weekOfMonth = ((d.day - 1) / 7).floor(); // 0–4
+      final weekOfMonth = ((d.day - 1) / 7).floor();
       return d.month - 1 == monthIndex && weekOfMonth == weekIndex;
     }).length;
 
@@ -43,7 +37,6 @@ class DonationStreakProvider extends ChangeNotifier {
     return 4;
   }
 
-  // This month's donation count
   int get thisMonthCount {
     final now = DateTime.now();
     return _donations
@@ -51,12 +44,10 @@ class DonationStreakProvider extends ChangeNotifier {
         .length;
   }
 
-  // Current streak in weeks (consecutive weeks with at least 1 donation)
   int get currentStreakWeeks {
     if (_donations.isEmpty) return 0;
     final now = DateTime.now();
     int streak = 0;
-    // Walk back week by week from current week
     DateTime weekStart = now.subtract(Duration(days: now.weekday - 1));
     while (true) {
       final weekEnd = weekStart.add(const Duration(days: 7));
@@ -68,12 +59,11 @@ class DonationStreakProvider extends ChangeNotifier {
       if (!hasDonation) break;
       streak++;
       weekStart = weekStart.subtract(const Duration(days: 7));
-      if (streak > 52) break; // Safety cap
+      if (streak > 52) break;
     }
     return streak;
   }
 
-  // Longest streak in weeks ever
   int get longestStreakWeeks {
     if (_donations.isEmpty) return 0;
     _donations.sort();

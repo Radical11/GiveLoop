@@ -71,12 +71,12 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> register({
-    required String username, // ✅ ADD username param
+    required String username,
     required String email,
     required String password,
   }) async {
     try {
-      print('API REGISTER BODY: username=$username, email=$email'); // ✅ DEBUG
+      print('API REGISTER BODY: username=$username, email=$email');
       final response = await _dio.post(
         '/auth/register/',
         data: {

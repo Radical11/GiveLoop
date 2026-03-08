@@ -107,9 +107,7 @@ class DetailsScreen extends StatelessWidget {
                           const SizedBox(height: 12),
                           Center(
                             child: TextButton.icon(
-                              onPressed: () {
-                                // TODO: call backend to save NGO / favourite
-                              },
+                              onPressed: () {},
                               icon: const Icon(
                                 Icons.favorite_border,
                                 size: 18,
@@ -175,7 +173,6 @@ class DetailsScreen extends StatelessWidget {
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             child: Container(
-              // ✅ Category placeholder like HomeScreen
               height: 180,
               width: double.infinity,
               color: Colors.grey[200],

@@ -246,7 +246,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              // ✅ NEW: Profile Option
               ListTile(
                 leading: const Icon(Icons.person, color: Colors.white70),
                 title: const Text(
@@ -257,14 +256,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 onTap: () {
-                  Navigator.pop(context); // Close drawer
+                  Navigator.pop(context);
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const ProfileScreen()),
                   );
                 },
               ),
-              // Logout Option
               ListTile(
                 leading: const Icon(Icons.logout, color: Colors.white70),
                 title: const Text(
@@ -387,7 +385,7 @@ class _HomeScreenState extends State<HomeScreen> {
       width: double.infinity,
       height: 44,
       child: ElevatedButton.icon(
-        onPressed: () {}, // TODO: Leaderboard screen
+        onPressed: () {},
         icon: const Icon(Icons.leaderboard, size: 18),
         label: const Text('View Leaderboard'),
         style: ElevatedButton.styleFrom(
