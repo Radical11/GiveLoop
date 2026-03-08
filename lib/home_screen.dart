@@ -5,6 +5,7 @@ import '../services/auth_provider.dart';
 import 'details_screen.dart';
 import '../models/ngo_model.dart';
 import 'login_screen.dart';
+import 'profile_screen.dart';
 
 IconData _getCategoryIcon(String category) {
   switch (category.toLowerCase()) {
@@ -245,6 +246,25 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
+              // ✅ NEW: Profile Option
+              ListTile(
+                leading: const Icon(Icons.person, color: Colors.white70),
+                title: const Text(
+                  'Profile',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context); // Close drawer
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                  );
+                },
+              ),
+              // Logout Option
               ListTile(
                 leading: const Icon(Icons.logout, color: Colors.white70),
                 title: const Text(

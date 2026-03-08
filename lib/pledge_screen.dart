@@ -4,6 +4,7 @@ import '../models/ngo_model.dart';
 import '../api_service.dart';
 import '../services/auth_provider.dart';
 import '../providers/needs_provider.dart';
+import '../providers/donation_streak_provider.dart';
 
 class PledgeScreen extends StatefulWidget {
   final Ngo ngo;
@@ -52,7 +53,6 @@ class _PledgeScreenState extends State<PledgeScreen> {
 
     try {
       final api = ApiService();
-      // Backend expects: need_id, category, quantity
       await api.pledge(
         needId: widget.ngo.id,
         category: _selectedCategory,
@@ -62,6 +62,10 @@ class _PledgeScreenState extends State<PledgeScreen> {
       if (!mounted) return;
       final needsProvider = Provider.of<NeedsProvider>(context, listen: false);
       await needsProvider.fetchNeeds();
+      await Provider.of<DonationStreakProvider>(
+        context,
+        listen: false,
+      ).recordDonation();
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -69,7 +73,7 @@ class _PledgeScreenState extends State<PledgeScreen> {
           backgroundColor: Colors.green,
         ),
       );
-      Navigator.pop(context); // go back to details
+      Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

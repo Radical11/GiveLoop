@@ -5,6 +5,7 @@ import 'providers/needs_provider.dart';
 import 'login_screen.dart';
 import 'signin_screen.dart';
 import 'signup_screen.dart';
+import 'providers/donation_streak_provider.dart';
 import 'home_screen.dart';
 
 void main() {
@@ -13,6 +14,7 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => NeedsProvider()),
+        ChangeNotifierProvider(create: (_) => DonationStreakProvider()..load()),
       ],
       child: const GiveLoopApp(),
     ),
