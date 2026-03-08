@@ -4,6 +4,7 @@ import '../providers/needs_provider.dart';
 import '../services/auth_provider.dart';
 import 'details_screen.dart';
 import '../models/ngo_model.dart';
+import 'login_screen.dart';
 
 IconData _getCategoryIcon(String category) {
   switch (category.toLowerCase()) {
@@ -51,6 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return ScaffoldMessenger(
       key: _scaffoldMessengerKey,
       child: Scaffold(
+        drawer: _buildDrawer(),
         backgroundColor: Colors.black,
         body: SafeArea(
           child: Center(
@@ -119,6 +121,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
                           final allNeeds = needsProvider.needs;
 
+                          final authProvider = Provider.of<AuthProvider>(
+                            context,
+                            listen: true,
+                          );
+
                           return SingleChildScrollView(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16,
@@ -127,8 +134,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'Good Morning, User!',
+                                Text(
+                                  'Good Morning, ${authProvider.isLoggedIn ? (authProvider.username ?? 'User') : 'Guest'}!',
                                   style: TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.w700,
@@ -177,7 +184,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                                 const SizedBox(height: 12),
                                 _buildCategoriesRow(allNeeds),
-                                const SizedBox(height: 24),
+                                const SizedBox(height: 16),
+                                _buildNearbyNgos(allNeeds),
                               ],
                             ),
                           );
@@ -194,6 +202,81 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildDrawer() {
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        return Drawer(
+          backgroundColor: const Color(0xFF1F1234),
+          child: Column(
+            children: [
+              DrawerHeader(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF4C3C7A), Color(0xFF9F7BFF)],
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Colors.white,
+                      child: Icon(
+                        Icons.person,
+                        size: 40,
+                        color: Color(0xFF4C3C7A),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Welcome Back!',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      authProvider.isLoggedIn
+                          ? (authProvider.username ?? 'User')
+                          : 'Guest',
+                      style: TextStyle(fontSize: 14, color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.logout, color: Colors.white70),
+                title: const Text(
+                  'Logout',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  Provider.of<AuthProvider>(context, listen: false).logout();
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  );
+                },
+              ),
+              const Spacer(),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'DonateHub v1.0',
+                  style: TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildTopBar() {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
@@ -201,12 +284,11 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Row(
             children: [
-              IconButton(
-                onPressed: () =>
-                    _scaffoldMessengerKey.currentState?.showSnackBar(
-                      const SnackBar(content: Text('Drawer not implemented')),
-                    ),
-                icon: const Icon(Icons.menu, color: Color(0xFF1F1234)),
+              Builder(
+                builder: (context) => IconButton(
+                  onPressed: () => Scaffold.of(context).openDrawer(),
+                  icon: const Icon(Icons.menu, color: Color(0xFF1F1234)),
+                ),
               ),
               const Spacer(),
               IconButton(
@@ -226,14 +308,35 @@ class _HomeScreenState extends State<HomeScreen> {
                           context,
                           listen: false,
                         ).logout();
-                        _scaffoldMessengerKey.currentState?.showSnackBar(
-                          const SnackBar(content: Text('Logged out')),
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (_) => const LoginScreen(),
+                          ),
                         );
                       }
                     : null,
-                icon: Icon(
-                  authProvider.isLoggedIn ? Icons.logout : Icons.person_outline,
-                  color: Color(0xFF1F1234),
+                icon: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      authProvider.isLoggedIn
+                          ? Icons.logout
+                          : Icons.person_outline,
+                      color: Color(0xFF1F1234),
+                    ),
+                    if (authProvider.isLoggedIn &&
+                        authProvider.username != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          authProvider.username![0].toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ],
@@ -278,12 +381,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildCategoriesRow(List<Ngo> allNeeds) {
-    final categories = allNeeds.map((ngo) => ngo.category).toSet().toList()
-      ..sort();
-
-    if (categories.isEmpty) {
-      categories.addAll(['All', 'Health', 'Clothes', 'Food']); // Fallback
-    }
+    final categories = [
+      'All',
+      ...allNeeds.map((ngo) => ngo.category).toSet().toList(),
+    ]..sort();
 
     return SizedBox(
       height: 76,
@@ -306,19 +407,105 @@ class _HomeScreenState extends State<HomeScreen> {
                 borderRadius: BorderRadius.circular(18),
               ),
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
                     _getCategoryIcon(category),
                     size: 24,
                     color: selected ? Colors.white : const Color(0xFF4B3B80),
                   ),
-                  // _getCategoryIcon moved to top-level to be shared with _NgoCard
+                  if (category != 'All') ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      category,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: selected
+                            ? Colors.white
+                            : const Color(0xFF4B3B80),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
           );
         },
       ),
+    );
+  }
+
+  Widget _buildNearbyNgos(List<Ngo> allNeeds) {
+    final categories = [
+      'All',
+      ...allNeeds.map((ngo) => ngo.category).toSet().toList(),
+    ];
+    categories.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+
+    final selectedCategoryName = _selectedCategory == 0
+        ? 'All'
+        : categories[_selectedCategory];
+
+    final filteredNgos = selectedCategoryName == 'All'
+        ? allNeeds
+        : allNeeds
+              .where(
+                (ngo) =>
+                    ngo.category.toLowerCase() ==
+                    selectedCategoryName.toLowerCase(),
+              )
+              .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'NGOs Near You',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1F1234),
+              ),
+            ),
+            Text(
+              '${filteredNgos.length} NGOs',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        filteredNgos.isEmpty
+            ? const Padding(
+                padding: EdgeInsets.all(32),
+                child: Column(
+                  children: [
+                    Icon(Icons.search_off, size: 48, color: Colors.grey),
+                    SizedBox(height: 8),
+                    Text(
+                      'No NGOs found for this category',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                ),
+              )
+            : ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: filteredNgos.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  return _NgoCard(ngo: filteredNgos[index]);
+                },
+              ),
+      ],
     );
   }
 
@@ -338,7 +525,7 @@ class _HomeScreenState extends State<HomeScreen> {
 class _NgoCard extends StatelessWidget {
   final Ngo ngo;
 
-  const _NgoCard({super.key, required this.ngo});
+  const _NgoCard({required this.ngo});
 
   @override
   Widget build(BuildContext context) {
